@@ -1,4 +1,3 @@
-#include <bits/stdc++.h>
 #include "scanner.h"
 using namespace std;
 
