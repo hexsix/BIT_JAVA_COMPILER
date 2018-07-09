@@ -21,27 +21,27 @@ public:
 
 class BUFFER {
 private:
-	union CONST
-	{
-		int _BUF_SIZE = 128;
-	};
+	enum { _BUF_SIZE = 128 };
 	std::ifstream _file;
 	std::string _str[2];		// 对半缓冲区
 	int _cur_buf;				// 当前所在的缓冲区
 	int _pointer;				// 当前指针位置
+	bool eof;					// 是否已经读完
+	bool trace_back_flag;		// 回退的时候返回上个缓冲区设置为true, 下次forward的时候不从文件读新的
+	void _read_file();			// 从文件中向当前缓冲区读取_BUF_SIZE个字符
 public:
 	BUFFER();
 	BUFFER(std::string filename);
 	~BUFFER();
-	bool close();				// 关闭文件, 成功返回 true
+	bool open(std::string filename);	// 打开文件, 成功返回 true
+	bool close();						// 关闭文件, 成功返回 true
 	char get_forward();			// 获得下一个字符
 	void trace_back();			// 回退预读的字符
 };
 
 class SCANNER {
 private:
-	int p;
-	std::string buf;
+	BUFFER * buf;
 
 	std::string temp_token;
 	int attr;
@@ -119,14 +119,13 @@ private:
 	std::string oct2dec(std::string oct);
 	std::string hex2dec(std::string hex);
 	std::string scfloat2float(std::string scfloat);
-	char getNextChar();
 	TOKEN getPreviousToken();
 	void error_report();
 	void output_result();
 public:
 	SCANNER();
+	SCANNER(std::string filename);
 	~SCANNER();
-	void init(std::string);
 	void run();
 };
 

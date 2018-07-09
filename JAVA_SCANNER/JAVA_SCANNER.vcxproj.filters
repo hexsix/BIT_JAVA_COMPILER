@@ -30,4 +30,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="in">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="scan_out">
+      <Filter>资源文件</Filter>
+    </None>
+  </ItemGroup>
 </Project>

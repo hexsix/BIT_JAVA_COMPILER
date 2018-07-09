@@ -28,8 +28,121 @@ int TOKEN::attr()
 
 std::ostream & operator<<(std::ostream &out, TOKEN &obj)
 {
-	out << "<" << obj._word << ", " << obj._attr << ">" << std::endl;
+	out << "<" << obj._word << ", 0x" << std::hex << obj._attr << ">";
 	return out;
+}
+
+/*********************************************************/
+/**
+ *	BUFFER
+ */
+BUFFER::BUFFER()
+{
+
+}
+
+BUFFER::BUFFER(std::string filename)
+{
+	if (!open(filename))
+	{
+		std::cout << "file not exist" << std::endl;
+		exit(0);
+	}
+	_cur_buf = 0;
+	_pointer = 0;
+	_read_file();
+}
+
+BUFFER::~BUFFER()
+{
+
+}
+
+void BUFFER::_read_file()
+{
+	_str[_cur_buf].clear();
+	char tp;
+	int cnt = 0;
+	while (_file.peek() != EOF)
+	{
+		_file.get(tp);
+		_str[_cur_buf].append(1, tp);
+		cnt++;
+		if (cnt >= _BUF_SIZE)
+		{
+			return;
+		}
+	}
+	eof = true;
+}
+
+bool BUFFER::open(std::string filename)
+{
+	_file.open(filename);
+	return _file.is_open();
+}
+
+bool BUFFER::close()
+{
+	if (_file.is_open())
+	{
+		_file.close();
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+char BUFFER::get_forward()
+{
+	char ret;
+	int size = _str[_cur_buf].size();
+	if (_pointer < size)
+	{
+		ret = _str[_cur_buf][_pointer];
+		
+		/** 指针移动到下一位, 如果超过当前缓冲区大小, 
+		 *	如果没有溢出缓冲区, 则不用操作
+		 *	如果溢出, 先判断eof
+		 *		如果eof为true, 就不用再从文件输出到缓冲区
+		 *		否则, 就切换缓冲区, 从文件中读取字符到这个缓冲区, 然后将指针置零
+		 */
+		_pointer++;
+		if (_pointer >= size && !eof)
+		{
+			_cur_buf = (_cur_buf + 1) % 2;
+			if (!trace_back_flag)
+			{
+				_read_file();
+			}
+			_pointer = 0;
+			trace_back_flag = false;
+		}
+
+		return ret;
+	}
+	else
+	{
+		return EOF;
+	}
+}
+
+void BUFFER::trace_back()
+{
+	--_pointer;
+	if (_pointer < 0)
+	{
+		_cur_buf = (_cur_buf + 1) % 2;
+		_pointer = _str[_cur_buf].size() - 1;
+		trace_back_flag = true;
+	}
+	if (_pointer < 0 || _pointer >= _str[_cur_buf].size())
+	{
+		std::cout << "trace back error" << std::endl;
+		exit(0);
+	}
 }
 
 /*********************************************************/
@@ -38,36 +151,35 @@ std::ostream & operator<<(std::ostream &out, TOKEN &obj)
  */
 SCANNER::SCANNER() 
 {
-	p = 0;
-	attr = 0;
-	line_number = 1;
-	temp_token = "";
-	tokens.clear();
-}
-SCANNER::~SCANNER() {}
-
-void SCANNER::init(std::string _)
-{
-	buf = _;
-	p = 0;
 	attr = 0;
 	line_number = 1;
 	temp_token = "";
 	tokens.clear();
 }
 
-char SCANNER::getNextChar()
+SCANNER::SCANNER(std::string filename)
 {
-	p++;
-	if (p >= buf.size())
-		return EOF;
-	return buf[p];
+	buf = new BUFFER(filename);
+	attr = 0;
+	line_number = 1;
+	temp_token = "";
+	tokens.clear();
 }
+
+SCANNER::~SCANNER() 
+{
+	delete buf;
+}
+
 
 TOKEN SCANNER::getPreviousToken()
 {
 	if (tokens.size() == 0)
-		return TOKEN("乌拉!!!!", 0x3f3f3f3f);
+	{	
+		std::cout << "tokens是空的, 调用getPreviousToken()你想干什么" << std::endl;
+		exit(0);
+		return TOKEN("tokens是空的, 调用getPreviousToken()你想干什么", 0x3f3f3f3f);
+	}
 	return tokens[tokens.size() - 1];
 }
 
@@ -75,31 +187,66 @@ void SCANNER::run()
 {
 	tokens.clear();
 
-	while (attr != 0x100 || attr != EOF)
+	for (auto i = 0; i < 1e7; i++)
 	{
 		TOKEN temp = st_0();
 		tokens.push_back(temp);
+		if (attr == 262)
+		{
+			int break_point = 0;
+		}
+		if (attr == 0x100)					// 当发生错误时, 舍弃整行
+		{
+			error_report();
+			char tp;
+			while (true)
+			{
+				tp = buf->get_forward();
+				if (tp == '\n')
+				{
+					++line_number;
+					break;
+				}
+				else if (tp == (char)EOF)
+				{
+					attr = EOF;
+					break;
+				}
+			}
+		}
+		if (attr == EOF)
+		{
+			break;
+		}
 	}
 
-	if (attr == 0x100)
+	output_result();
+}
+
+void SCANNER::error_report()
+{
+	std::cout << line_number << " : " << temp_token << std::endl;
+}
+
+void SCANNER::output_result()
+{
+	std::ofstream scan_out;
+	scan_out.open("scan_out");
+	for (auto i = 0; i < tokens.size(); ++i)
 	{
-		error_report();
-	}
-	else
-	{
-		output_result();
+		scan_out << tokens[i] << std::endl;
 	}
 }
 
 TOKEN SCANNER::st_0()
 {
-	if (attr == 0x100 || attr == EOF)
-		return;
+	if (attr == EOF)
+		return TOKEN("EOF", attr);
 
 	temp_token = "";
 	attr = 0x0;
 
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == EOF)
 	{
 		attr = EOF;
@@ -249,23 +396,25 @@ TOKEN SCANNER::st_0()
 	else if (cur == ' ')
 	{
 		attr = 0x102;
-		temp_token = " ";
+		temp_token = "(SPACE)";
 	}
 	else if (cur == '\n')
 	{
-		line_number++;
+		++line_number;
 		attr = 0x102;
-		temp_token = "\n";
+		temp_token = "(NEXTLINE)";
 	}
 	else if (cur == '\t')
 	{
 		attr = 0x102;
-		temp_token = "TAB";
+		temp_token = "(TAB)";
 	}
 	// 错误
 	else
 	{
-		temp_token = "错误的单词";
+		buf->trace_back();
+		temp_token = "UNEXPECTED_CHAR:";
+		temp_token.append(1, cur);
 		attr = 0x100;
 	}
 	return TOKEN(temp_token, attr);
@@ -279,7 +428,7 @@ TOKEN SCANNER::st_0()
  */
 void SCANNER::st_identify_final()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 
 	// 字母 | 数字 | '$' | '_'
 	if ((cur >= 'a' && cur <= 'z') || (cur >= 'A' && cur <= 'Z')
@@ -291,7 +440,7 @@ void SCANNER::st_identify_final()
 	// 其他
 	else
 	{
-		p--;			// 为了判断 标识符/关键字 的结尾多读了一位, 回退回去
+		buf->trace_back();			// 为了判断 标识符/关键字 的结尾多读了一位, 回退回去
 		if (isKeyword(temp_token))
 		{
 			if (temp_token == "true" || temp_token == "false")
@@ -329,10 +478,11 @@ bool SCANNER::isKeyword(std::string a)
  */
 void SCANNER::st_string0()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == EOF || cur == '\n')
 	{
-		temp_token = "未关闭的字符串";
+		buf->trace_back();
+		temp_token = "UNCLOSED_CHAR";
 		attr = 0x100;
 		return;
 	}
@@ -357,23 +507,23 @@ void SCANNER::st_string0()
 
 void SCANNER::st_string1()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 
 	// \ddd 1 到 3 位 8 进制数据所表示的字符 (ddd)
 	if (cur >= '0' && cur <= '7')
 	{
-		char nex = getNextChar();
+		char nex = buf->get_forward();
 		if (nex < '0' || nex > '7')
 		{
-			p--;		// 为了判断是否是 \dd 多读了一位
+			buf->trace_back();		// 为了判断是否是 \dd 多读了一位
 			temp_token.append(1, (char)(cur - '0'));
 		}
 		else
 		{
-			char nextnex = getNextChar();
+			char nextnex = buf->get_forward();
 			if (nextnex < '0' || nextnex > '7')
 			{
-				p--;	// 为了判断是否是 \ddd 多读了一位
+				buf->trace_back();	// 为了判断是否是 \ddd 多读了一位
 				temp_token.append(1,
 					(char)((cur - '0') * 8 + (nex - '0')));
 			}
@@ -424,13 +574,19 @@ void SCANNER::st_string1()
 	{
 		temp_token.append(1, '\b');
 	}
+	else if (cur == '\"')
+	{
+		temp_token.append(1, '\"');
+	}
 	// UNDO 其他转义
 	// 不存在的转义字符
 	else
 	{
-		temp_token = "非法的转义字符";
+		buf->trace_back();
+		temp_token = "ILLEGAL_zhuan_yi";
 		attr = 0x100;
 	}
+	st_string0();
 }
 
 void SCANNER::st_string_final()
@@ -445,17 +601,14 @@ void SCANNER::st_string_final()
  */
 void SCANNER::st_char0()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == EOF)
 	{
-		temp_token = "未关闭的字符";
+		buf->trace_back();
+		temp_token = "UNCLOSED_CHAR";
 		attr = 0x100;
 	}
 
-	else if (cur == '\'')
-	{
-		st_char_final();
-	}
 	else if (cur == '\\')
 	{
 		st_char2();
@@ -469,14 +622,15 @@ void SCANNER::st_char0()
 
 void SCANNER::st_char1()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '\'')
 	{
 		st_char_final();
 	}
 	else
 	{
-		temp_token = "未关闭的字符";
+		buf->trace_back();
+		temp_token = "UNCLOSED_CHAR";
 		attr = 0x100;
 	}
 }
@@ -484,6 +638,86 @@ void SCANNER::st_char1()
 void SCANNER::st_char2()
 {
 	// TODO 复制 st_string1()
+	char cur = buf->get_forward();
+
+	// \ddd 1 到 3 位 8 进制数据所表示的字符 (ddd)
+	if (cur >= '0' && cur <= '7')
+	{
+		char nex = buf->get_forward();
+		if (nex < '0' || nex > '7')
+		{
+			buf->trace_back();		// 为了判断是否是 \dd 多读了一位
+			temp_token.append(1, (char)(cur - '0'));
+		}
+		else
+		{
+			char nextnex = buf->get_forward();
+			if (nextnex < '0' || nextnex > '7')
+			{
+				buf->trace_back();	// 为了判断是否是 \ddd 多读了一位
+				temp_token.append(1,
+					(char)((cur - '0') * 8 + (nex - '0')));
+			}
+			else
+			{
+				temp_token.append(1,
+					(char)((cur - '0') * 64 + (nex - '0') * 8 + (nextnex - '0')));
+			}
+		}
+	}
+	// \uxxxx
+	else if (cur == 'u')
+	{
+		// TODO
+	}
+	// \'
+	else if (cur == '\'')
+	{
+		temp_token.append(1, '\'');
+	}
+	// 
+	else if (cur == '\\')
+	{
+		temp_token.append(1, '\\');
+	}
+	// \r
+	else if (cur == 'r')
+	{
+		temp_token.append(1, '\r');
+	}
+	// \n
+	else if (cur == 'n')
+	{
+		temp_token.append(1, '\n');
+	}
+	// \f
+	else if (cur == 'f')
+	{
+		temp_token.append(1, '\f');
+	}
+	// \t
+	else if (cur == 't')
+	{
+		temp_token.append(1, '\t');
+	}
+	// \b
+	else if (cur == 'b')
+	{
+		temp_token.append(1, '\b');
+	}
+	else if (cur == '\"')
+	{
+		temp_token.append(1, '\"');
+	}
+	// UNDO 其他转义
+	// 不存在的转义字符
+	else
+	{
+		buf->trace_back();
+		temp_token = "ILLEGAL_zhuan_yi";
+		attr = 0x100;
+	}
+	st_char1();
 }
 
 void SCANNER::st_char_final()
@@ -518,7 +752,7 @@ std::string SCANNER::scfloat2float(std::string scfloat)
 
 void SCANNER::st_zero_final()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	
 	if (cur == 'L' || cur == 'l')
 	{
@@ -545,19 +779,20 @@ void SCANNER::st_zero_final()
 	}
 	else if (cur == '8' || cur == '9')
 	{
-		temp_token = "非法的八进制整型";
+		buf->trace_back();
+		temp_token = "ILLEGAL_OCT";
 		attr = 0x100;
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x107;
 	}
 }
 
 void SCANNER::st_int_final()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	
 	if (cur >= '0' && cur <= '9')
 	{
@@ -580,14 +815,14 @@ void SCANNER::st_int_final()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x107;
 	}
 }
 
 void SCANNER::st_hex0()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if ((cur >= '0' && cur <= '9') ||
 		(cur >= 'A' && cur <= 'F') ||
 		(cur >= 'a' && cur <= 'f'))
@@ -597,14 +832,15 @@ void SCANNER::st_hex0()
 	}
 	else
 	{
-		temp_token = "非法的十六进制整型";
+		buf->trace_back();
+		temp_token = "ILLEGAL_HEX";
 		attr = 0x100;
 	}
 }
 
 void SCANNER::st_hex_final()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if ((cur >= '0' && cur <= '9') ||
 		(cur >= 'A' && cur <= 'F') ||
 		(cur >= 'a' && cur <= 'f'))
@@ -619,14 +855,14 @@ void SCANNER::st_hex_final()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x107;
 	}
 }
 
 void SCANNER::st_oct_final()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur >= '0' && cur <= '7')
 	{
 		temp_token.append(1, cur);
@@ -639,7 +875,7 @@ void SCANNER::st_oct_final()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x107;
 	}
 }
@@ -651,7 +887,7 @@ void SCANNER::st_long_final()
 
 void SCANNER::st_dot_final()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur >= '0' && cur <= '9')
 	{
 		temp_token.append(1, cur);
@@ -659,14 +895,14 @@ void SCANNER::st_dot_final()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x11d;
 	}
 }
 
 void SCANNER::st_float_final()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur >= '0' && cur <= '9')
 	{
 		temp_token.append(1, cur);
@@ -683,14 +919,14 @@ void SCANNER::st_float_final()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x108;
 	}
 }
 
 void SCANNER::st_scFloat0()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '-')
 	{
 		temp_token.append(1, cur);
@@ -703,14 +939,15 @@ void SCANNER::st_scFloat0()
 	}
 	else
 	{
-		temp_token = "非法的科学计数法";
+		buf->trace_back();
+		temp_token = "ILLEGAL_SIENCE";
 		attr = 0x100;
 	}
 }
 
 void SCANNER::st_scFloat1()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur >= '0' && cur <= '9')
 	{
 		temp_token.append(1, cur);
@@ -718,14 +955,15 @@ void SCANNER::st_scFloat1()
 	}
 	else
 	{
-		temp_token = "非法的科学计数法";
+		buf->trace_back();
+		temp_token = "ILLEGAL_SIENCE";
 		attr = 0x100;
 	}
 }
 
 void SCANNER::st_scFloat_final()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur >= '0' && cur <= '9')
 	{
 		temp_token.append(1, cur);
@@ -737,7 +975,7 @@ void SCANNER::st_scFloat_final()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		temp_token = scfloat2float(temp_token);
 		attr = 0x108;
 	}
@@ -760,7 +998,7 @@ void SCANNER::st_FFloat_final()
  */
 void SCANNER::st01()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	int pre_attr = getPreviousToken().attr();
 	if (cur == '+')
 	{
@@ -772,7 +1010,7 @@ void SCANNER::st01()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		if (pre_attr != 0x104 && pre_attr != 0x105 &&
 			pre_attr != 0x106 && pre_attr != 0x107 &&
 			pre_attr != 0x108 && pre_attr != 0x109)
@@ -809,7 +1047,7 @@ void SCANNER::st03()
  */
 void SCANNER::st04()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	int pre_attr = getPreviousToken().attr();
 	if (cur == '-')
 	{
@@ -821,7 +1059,7 @@ void SCANNER::st04()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		if (pre_attr != 0x104 && pre_attr != 0x105 &&
 			pre_attr != 0x107 && pre_attr != 0x108)
 		{
@@ -857,7 +1095,7 @@ void SCANNER::st06()
  */
 void SCANNER::st07()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	
 	if (cur == '=')
 	{
@@ -865,7 +1103,7 @@ void SCANNER::st07()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x11b;
 		temp_token = "*";
 	}
@@ -883,12 +1121,12 @@ void SCANNER::st08()
  */
 void SCANNER::st09()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st10();
 	}
-	else if (cur == '//')
+	else if (cur == '/')
 	{
 		st11();
 	}
@@ -898,7 +1136,7 @@ void SCANNER::st09()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x11b;
 		temp_token = "//";
 	}
@@ -916,16 +1154,16 @@ void SCANNER::st10()
  */
 void SCANNER::st11()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	while (true)
 	{
 		if (cur == '\n' || cur == EOF)
 		{
-			p--;
+			buf->trace_back();
 			break;
 		}
 		temp_token.append(1, cur);
-		cur = getNextChar();
+		cur = buf->get_forward();
 	}
 	attr = 0x101;
 }
@@ -934,23 +1172,32 @@ void SCANNER::st11()
  */
 void SCANNER::st12()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	while (true)
 	{
 		if (cur == '*')
 		{
-			char nex = getNextChar();
-			if (nex = '/')
+			char nex = buf->get_forward();
+			if (nex == '/')
 			{
 				break;
 			}
 			else
 			{
-				p--;
+				buf->trace_back();
 			}
 		}
-		temp_token.append(1, cur);
-		cur = getNextChar();
+		if (cur == '\n')
+		{
+			++line_number;
+			temp_token.append(1, '\\');
+			temp_token.append(1, 'n');
+		}
+		else
+		{
+			temp_token.append(1, cur);
+		}
+		cur = buf->get_forward();
 	}
 	attr = 0x101;
 }
@@ -959,14 +1206,14 @@ void SCANNER::st12()
  */
 void SCANNER::st13()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st14();
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x11b;
 		temp_token = "%";
 	}
@@ -984,14 +1231,14 @@ void SCANNER::st14()
  */
 void SCANNER::st15()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st16();
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x110;
 		temp_token = "=";
 	}
@@ -1009,7 +1256,7 @@ void SCANNER::st16()
  */
 void SCANNER::st17()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st18();
@@ -1020,7 +1267,7 @@ void SCANNER::st17()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x118;
 		temp_token = ">";
 	}
@@ -1038,7 +1285,7 @@ void SCANNER::st18()
  */
 void SCANNER::st19()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st20();
@@ -1049,7 +1296,7 @@ void SCANNER::st19()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x119;
 		temp_token = ">>";
 	}
@@ -1067,14 +1314,14 @@ void SCANNER::st20()
  */
 void SCANNER::st21()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st22();
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x119;
 		temp_token = ">>>";
 	}
@@ -1092,7 +1339,7 @@ void SCANNER::st22()
  */
 void SCANNER::st23()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st24();
@@ -1103,7 +1350,7 @@ void SCANNER::st23()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x118;
 		temp_token = "<";
 	}
@@ -1121,14 +1368,14 @@ void SCANNER::st24()
  */
 void SCANNER::st25()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st26();
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x119;
 		temp_token = "<<";
 	}
@@ -1146,14 +1393,14 @@ void SCANNER::st26()
  */
 void SCANNER::st27()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st28();
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x11c;
 		temp_token = "!";
 	}
@@ -1171,14 +1418,14 @@ void SCANNER::st28()
  */
 void SCANNER::st29()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st30();
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x115;
 		temp_token = "^";
 	}
@@ -1196,7 +1443,7 @@ void SCANNER::st30()
  */
 void SCANNER::st31()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '=')
 	{
 		st33();
@@ -1207,7 +1454,7 @@ void SCANNER::st31()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x114;
 		temp_token = "|";
 	}
@@ -1233,7 +1480,7 @@ void SCANNER::st33()
  */
 void SCANNER::st34()
 {
-	char cur = getNextChar();
+	char cur = buf->get_forward();
 	if (cur == '&')
 	{
 		st35();
@@ -1244,7 +1491,7 @@ void SCANNER::st34()
 	}
 	else
 	{
-		p--;
+		buf->trace_back();
 		attr = 0x116;
 		temp_token = "&";
 	}
