@@ -131,6 +131,7 @@
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\README.md" />
     <None Include="in" />
     <None Include="scan_out" />
   </ItemGroup>
