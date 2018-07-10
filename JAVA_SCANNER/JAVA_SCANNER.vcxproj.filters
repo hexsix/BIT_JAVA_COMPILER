@@ -37,14 +37,19 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="in">
-      <Filter>资源文件</Filter>
-    </None>
     <None Include="scan_out">
       <Filter>资源文件</Filter>
     </None>
     <None Include="..\README.md">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="in.java">
+      <Filter>资源文件</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="result.asm">
+      <Filter>资源文件</Filter>
+    </Text>
   </ItemGroup>
 </Project>

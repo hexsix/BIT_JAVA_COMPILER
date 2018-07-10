@@ -8,7 +8,7 @@
 
 class GRAMMAR_ANALYSIS {
 private:
-	TOKEN tokens;
+	std::vector<TOKEN> tokens;
 	std::stack<int> _l;	// 分析栈
 	std::stack<int> _r;	// 余留输入串
 
@@ -27,10 +27,20 @@ private:
 	void P2();			// <P> → -
 	void P3();			// <P> → *
 	void P4();			// <P> → /
+
+	// 此时 op 为运算符栈, tp 为中间结果
+	std::stack<TOKEN> op;
+	std::stack<TOKEN> tp;
+	void build();
+	bool isOperator(TOKEN x);
+	int getPrio(TOKEN x);
+
+	void out_asm();
 public:
 	GRAMMAR_ANALYSIS();
 	~GRAMMAR_ANALYSIS();
 	void run();
+	void set_tokens(std::vector<TOKEN> p);
 };
 
 #endif

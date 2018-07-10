@@ -48,8 +48,6 @@ private:
 
 	int line_number;
 
-	std::vector<TOKEN> tokens;
-
 	// 状态函数, 含有 final 字样的是 DFA 终结状态
 	TOKEN st_0();
 	// 关键字 和 标识符
@@ -123,6 +121,7 @@ private:
 	void error_report();
 	void output_result();
 public:
+	std::vector<TOKEN> tokens;
 	SCANNER();
 	SCANNER(std::string filename);
 	~SCANNER();

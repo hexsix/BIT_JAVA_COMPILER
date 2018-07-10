@@ -190,7 +190,8 @@ void SCANNER::run()
 	for (auto i = 0; i < 1e7; i++)
 	{
 		TOKEN temp = st_0();
-		tokens.push_back(temp);
+		if (temp.attr() != 0x102)	// 不是空格TAB回车等
+			tokens.push_back(temp);
 		if (attr == 262)
 		{
 			int break_point = 0;

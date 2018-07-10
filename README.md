@@ -34,6 +34,6 @@
 		<S>	→	标识符 = Ex	// S
 		<Vc>	→	标识符 | 整常数   // Vc1 / Vc2
 		<Ex>	→	Vc Ex’		// Ex
-		<Ex’>	→	P Vc | ε	// Ex_1 / Ex_2
+		<Ex’>	→	P Ex | ε	// Ex_1 / Ex_2
 		<P>	→	+ | - | * | / 	// P1 / P2 / P3 / P4
 

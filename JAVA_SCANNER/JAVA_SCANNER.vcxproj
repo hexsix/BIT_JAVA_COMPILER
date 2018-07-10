@@ -133,8 +133,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md" />
-    <None Include="in" />
+    <None Include="in.java" />
     <None Include="scan_out" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="result.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
