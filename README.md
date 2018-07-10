@@ -29,7 +29,7 @@
 	(3)	子集语法
 		* 重写了子集语法, 使其能满足LL(1)
 		<Sw>	→	while(Er)S;	// Sw
-		<Er>	→	Vc Er’	// Er
+		<Er>	→	Vc Er’		// Er
 		<Er’>	→	< Vc | > Vc	// Q1 / Q2
 		<S>	→	标识符 = Ex	// S
 		<Vc>	→	标识符 | 整常数   // Vc1 / Vc2
