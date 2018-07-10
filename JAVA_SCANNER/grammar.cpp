@@ -2,7 +2,7 @@
 
 GRAMMAR_ANALYSIS::GRAMMAR_ANALYSIS()
 {
-	// TODO
+
 }
 
 GRAMMAR_ANALYSIS::~GRAMMAR_ANALYSIS()
@@ -430,4 +430,5 @@ void GRAMMAR_ANALYSIS::out_asm()
 	}
 	// .endw
 	result << ".endw";
+	result.close();
 }

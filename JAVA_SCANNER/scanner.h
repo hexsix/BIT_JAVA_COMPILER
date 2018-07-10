@@ -28,6 +28,7 @@ private:
 	int _pointer;				// 当前指针位置
 	bool eof;					// 是否已经读完
 	bool trace_back_flag;		// 回退的时候返回上个缓冲区设置为true, 下次forward的时候不从文件读新的
+	bool small_flag;
 	void _read_file();			// 从文件中向当前缓冲区读取_BUF_SIZE个字符
 public:
 	BUFFER();

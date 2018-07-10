@@ -99,7 +99,21 @@ char BUFFER::get_forward()
 {
 	char ret;
 	int size = _str[_cur_buf].size();
-	if (_pointer < size)
+	if (_pointer == size - 1 && size < _BUF_SIZE)
+	{
+		ret = _str[_cur_buf][_pointer];
+		if (!small_flag)
+		{
+			small_flag = true;
+			_pointer++;
+		}
+		else 
+		{
+			_pointer = 0x3f3f3f;
+		}
+		return ret;
+	}
+	else if (_pointer < size)
 	{
 		ret = _str[_cur_buf][_pointer];
 		
@@ -131,6 +145,11 @@ char BUFFER::get_forward()
 
 void BUFFER::trace_back()
 {
+	if (_pointer == 0x3f3f3f)
+	{	// 这是个补丁, 很不优雅
+		return;
+	}
+
 	--_pointer;
 	if (_pointer < 0)
 	{
@@ -190,12 +209,8 @@ void SCANNER::run()
 	for (auto i = 0; i < 1e7; i++)
 	{
 		TOKEN temp = st_0();
-		if (temp.attr() != 0x102)	// 不是空格TAB回车等
+		if (temp.attr() != 0x102 && temp.attr() != 0x101)	// 不是空格TAB回车等 也不是注释
 			tokens.push_back(temp);
-		if (attr == 262)
-		{
-			int break_point = 0;
-		}
 		if (attr == 0x100)					// 当发生错误时, 舍弃整行
 		{
 			error_report();
@@ -483,7 +498,7 @@ void SCANNER::st_string0()
 	if (cur == EOF || cur == '\n')
 	{
 		buf->trace_back();
-		temp_token = "UNCLOSED_CHAR";
+		temp_token = "UNCLOSED_STRING";
 		attr = 0x100;
 		return;
 	}
@@ -759,7 +774,7 @@ void SCANNER::st_zero_final()
 	{
 		st_long_final();
 	}
-	else if (cur >= '0' || cur <= '7')
+	else if (cur >= '0' && cur <= '7')
 	{
 		temp_token.append(1, cur);
 		st_oct_final();
